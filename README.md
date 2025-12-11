@@ -4,14 +4,14 @@ This code is used to create Footprint-Weighted Flux Maps around eddy-covariance 
 Data input: Standard Ameriflux csv file or file output created from InitialFluxProcess.R in my other repo: MZA_Data-Process-and-Analysis
 
 ## Initial Steps
-•	Clone the “Footprint-Weighted-Flux-Maps” folder from Github in your local machine.
-•	Select a folder in your local machine for L4 processing output and note it for the next step.
-•	If you have not done so already, download the Ameriflux csv file for your site of interest. For speed and efficiency, you may upload a subset of the original file with the times of interest. Uploading the whole file should be fine as well but initial L4_Processing may run a bit slower.
+*	Clone the “Footprint-Weighted-Flux-Maps” folder from Github in your local machine.
+*	Select a folder in your local machine for L4 processing output and note it for the next step.
+*	If you have not done so already, download the Ameriflux csv file for your site of interest. For speed and efficiency, you may upload a subset of the original file with the times of interest. Uploading the whole file should be fine as well but initial L4_Processing may run a bit slower.
 
 ## L4_Processing
-•	Open the file L4_Process_from_AFcsv.m in the L4_processing folder to create an L4 file. For footprint processing there are multiple variables that are calculated in what I called “L4 files” These L4 files are Matlab structures with the Ameriflux csv data plus additional variables needed to run footprint including Aerodynamic canopy height and PBL height (PBL is optional).
+*	Open the file L4_Process_from_AFcsv.m in the L4_processing folder to create an L4 file. For footprint processing there are multiple variables that are calculated in what I called “L4 files” These L4 files are Matlab structures with the Ameriflux csv data plus additional variables needed to run footprint including Aerodynamic canopy height and PBL height (PBL is optional).
 
-•	Enter options
+*	Enter options
 * Modify the Save Directory (from previous step)
 * Select the site acronym for the site (3 letter code from Ameriflux recommended) 
 * Update the filename and file path for the csv file

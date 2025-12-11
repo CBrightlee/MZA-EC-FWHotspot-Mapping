@@ -1,5 +1,6 @@
 ## Footprint-Weighed-Flux-Maps
 This code is used to create Footprint-Weighted Flux Maps around eddy-covariance sites. It was originally written by Camilo Rey-Sanchez and was modified by myself and Tim Morin. The original footprint mapping code can be found at his GitHub here: https://github.com/Camilo-Rey/Footprint-Weighed-Flux-Maps
+
 Data input: Standard Ameriflux csv file or file output created from InitialFluxProcess.R in my other repo: MZA_Data-Process-and-Analysis
 
 ## Initial Steps

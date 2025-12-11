@@ -22,20 +22,20 @@ Data input: Standard Ameriflux csv file or file output created from InitialFluxP
 * Add PBL data if available. If not an estimate of 750 m will be used for all the footprints. Non-published tests inidicate the sensitivity of footprint models to PBL height is very low
 
 ## Calculating Footprints
-•	Go to the CalculateFootprint folder, Open FP_opts_continuous.m, select the site, and update the source of the L4 file from the previous step.
-•	Section How: If you only need one model, you can select only the best model (the K&M model) by adjusting opt.models=[0 0 1];
-•	In section “When?” select daytime or nighttime footprints. Select the start and the end times of the run in opt.start and opt.end2
-•	Select footprint contours to plot, you can choose more than 2, for example [50,60,70,80]
-•	Input fluxes. Adjust the fluxes for footprint-weighted flux by choosing those fluxes of interests that are available in your dataset for which you wish to create footprint-weighted flux maps. 
-•	Saving. Select a folder to Save the footprint output. For consistency this folder should be of the type '..\Footprint_Output\continuous\'. Continuous indicates that the data is being aggregated on continuous datasets. 
-•	Within the continuous folder a folder named ”kml” should be created. Here all the resulting contours in kml files will be created.
-•	Once all the options are ready run the code Footprint_Run_Continuous.m (click “run” or press F5)
-•	To plot the resulting footprint contours in kml files that can be then seen in Google Earth, the GoogleEarth toolbox is added at the end of the Footprint_Run_Continuous.m
+*	Go to the CalculateFootprint folder, Open FP_opts_continuous.m, select the site, and update the source of the L4 file from the previous step.
+*	Section How: If you only need one model, you can select only the best model (the K&M model) by adjusting opt.models=[0 0 1];
+*	In section “When?” select daytime or nighttime footprints. Select the start and the end times of the run in opt.start and opt.end2
+*	Select footprint contours to plot, you can choose more than 2, for example [50,60,70,80]
+*	Input fluxes. Adjust the fluxes for footprint-weighted flux by choosing those fluxes of interests that are available in your dataset for which you wish to create footprint-weighted flux maps. 
+*	Saving. Select a folder to Save the footprint output. For consistency this folder should be of the type '..\Footprint_Output\continuous\'. Continuous indicates that the data is being aggregated on continuous datasets. 
+*	Within the continuous folder a folder named ”kml” should be created. Here all the resulting contours in kml files will be created.
+*	Once all the options are ready run the code Footprint_Run_Continuous.m (click “run” or press F5)
+*	To plot the resulting footprint contours in kml files that can be then seen in Google Earth, the GoogleEarth toolbox is added at the end of the Footprint_Run_Continuous.m
 
 ## To create Footprint-Weighted Flux Maps
-•	Go to the folder FW_FluxMaps
-•	Open the file Surface_Flux_Map and update the DataDir with the output from the previous step.
-•	Modify the file to load with the output from the previous step.
-•	Make any necessary changes to the fluxes to be plotted. By default, CH4, CO2 and H2O are provided.
+*	Go to the folder FW_FluxMaps
+*	Open the file Surface_Flux_Map and update the DataDir with the output from the previous step.
+*	Modify the file to load with the output from the previous step.
+*	Make any necessary changes to the fluxes to be plotted. By default, CH4, CO2 and H2O are provided.
 
-•	Run the code. You should be able to see your initial footprint-weighted flux maps.
+*	Run the code. You should be able to see your initial footprint-weighted flux maps.

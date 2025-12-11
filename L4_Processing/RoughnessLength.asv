@@ -1,0 +1,77 @@
+function [d,z0,n,stat]=RoughnessLength(TowerHeight,CanopyHeight,OL,ustar,wind_speed,daynight)
+%RoughnessLength: Calculates displacement height and roughness length from
+%the parameters provided
+% Based on Mauer et al (2013) from Gil Bohrer's lab.
+
+lim=-1;
+
+z=TowerHeight;
+hei=CanopyHeight;
+
+good = ((z./OL>lim & z./OL<0) & ~isnan(wind_speed) & ~isnan(ustar) );
+
+z_star=hei*2;
+
+USTAR=ustar(good);
+L=OL(good);
+ubar=wind_speed(good);
+
+if sum(good)>20% previosuly 200    
+    opts = statset('nlinfit');
+    opts.RobustWgtFun='bisquare';
+    opts.TolFun=1e-11;
+
+    x0=[5 1.5]; %Starting guesses for a and b
+
+    % Immediate lower line is the nlinfit straight from the chamber code
+
+    %z = height above the canopy
+    %z_star = surface-roughness layer (RSL)
+    %L = Obukov length
+    %h_a = aerodynamic canopy height (from paper)
+    
+    %**a is the calculated parameter for d and b=z0
+    %Equation below in fittype is an algebraic reorganization of USTAR form
+    %so looks like fittype may be used to find the parameters a and b
+    inputs.L=L;
+    inputs.z=z;
+    inputs.USTAR=USTAR;
+    inputs.z_star=z_star;
+    x=nlinfit(inputs,ubar,@myfun2,x0,opts);
+
+    % s = fitoptions('Method','NonlinearLeastSquares','Robust','LAR','MaxFunEvals',1000,'MaxIter',1000,'Display','Off','Upper',[hei hei],'Lower',[0 0],'StartPoint',[5 1.5]);
+    % 
+    % f1 = fittype('USTAR/0.4*(log((z-a)/b)-(2*log((1+(1-16*(z-a)/x)^0.25)/2)+log((1+(1-16*(z-a)/x)^0.5)/2)-2*atan((1-16*(z-a)/x)^0.25)+pi/2)+(2*log((1+(1-16*(b)/x)^0.25)/2)+log((1+(1-16*(b)/x)^0.5)/2)-2*atan((1-16*(b)/x)^0.25)+pi/2)+((1-16*(z-a)/x)^(-1/4))*((1+0.5/2.59/((z-a)/(z_star-a)))*(z-a)/x)/1.5*log(1+1.5/(2.59*((z-a)/(z_star-a))))*exp(-2.59*((z-a)/(z_star-a))))',...           
+    %     'problem',{'z','USTAR','z_star'},'options',s);
+    % 
+    % [P,gof] = fit(L,ubar,f1,'problem',{z,USTAR,z_star})
+
+%ubar = mean horizontal wind speed at height z
+%{} around variables designate those as the terms for the model; 
+% so z, USTAR and z_star in our case
+
+
+    d=P.a; %Displacement height
+    z0=P.b; %Roughness length
+    n=sum(good);
+    stat=gof;
+else
+    d=nan;
+    z0=nan;
+    n=nan;
+    stat=nan;
+end
+end
+
+function F =myfun2(inputs,x0)
+    z=inputs.z;
+    USTAR  =inputs.USTAR;
+    z_star = inputs.z_star;
+    L      = inputs.L;
+
+    a=x0(1);
+    b=x0(2);
+    F=USTAR/0.4*(log((z-a)/b)-(2*log((1+(1-16*(z-a)/x)^0.25)/2)+log((1+(1-16*(z-a)/x)^0.5)/2)...
+        -2*atan((1-16*(z-a)/x)^0.25)+pi/2)+(2*log((1+(1-16*(b)/x)^0.25)/2)+log((1+(1-16*(b)/x)^0.5)/2)...
+        -2*atan((1-16*(b)/x)^0.25)+pi/2)+((1-16*(z-a)/x)^(-1/4))*((1+0.5/2.59/((z-a)/(z_star-a)))*(z-a)/x)/1.5*log(1+1.5/(2.59*((z-a)/(z_star-a))))*exp(-2.59*((z-a)/(z_star-a))));
+end

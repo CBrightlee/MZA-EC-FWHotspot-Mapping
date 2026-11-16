@@ -1,400 +1,342 @@
-%% Written by Tim Morin on 5/9/2025
-%% Last updated by Christian Bright 10/22/25
-% Aiming to get all maps into one gridwork to easily compare them
-% Linearly interpolate between pixels to get everything in the same
+%% Uniform Map Scaling & Spatial Grid Interpolation (UniformMapScaling.m)
+% Written by Tim Morin (5/9/2025)
+% Last updated by Christian Bright (10/22/2026)
+% Linearly interpolates spatial layers (flux maps, DEM, land cover, canopy height)
+% onto a common reference grid (orthoimagery coordinate framework) for direct comparison.
 
-clear;
+clear; clc;
 
-%% Set the map type that was setup in MapCode.m
-% j=1 %for orthoimagery mapping
-% j=2 %for DEM mapping
-% j=3 %for NDVI classification mapping
-% j=4 %for Sina height maps
+%% User-Configurable Paths (Update to match your local directory structure)
+input_dir  = './Footprint_Output/continuous/';
+output_dir = './Footprint_Output/matrices/';
 
- jj=[1,2,3,4];
- cd('C:\MontezumaData\2024_Data\EC_data\FW_FluxMaps\Footprint_Output\continuous')
-DataDir=('C:\MontezumaData\2024_Data\EC_data\FW_FluxMaps\Footprint_Output\matrices\');
+if ~exist(output_dir, 'dir')
+    mkdir(output_dir);
+end
 
-FileList={'MWR-KM-2024193-0000-to-2024274-0000-both-50-80MZA.mat', 'MWR-KM-2024193-0000-to-2024274-0000-day-50-80MZA.mat', 'MWR-KM-2024193-0000-to-2024274-0000-night-50-80MZA.mat'};
- %for the flux weighted maps
+%% Select Map Layers to Process
+% j = 1: Surface flux maps (CH4, CO2, H2O)
+% j = 2: Digital Elevation Model (DEM)
+% j = 3: Supervised land cover classification map
+% j = 4: Canopy height map
+jj = [1, 2, 3, 4];
 
-load('../../MWR_map.mat')     % Loading up the orthoimagery
-    orth.FX=FX_MWR;         % Tim: I was worried about getting confused with all the maps, so I wanted to give orthimagery it's own object
-    orth.FY=FY_MWR;
-    
-    [orth.FXX,orth.FYY]=meshgrid(orth.FX,orth.FY); % orth.FX and orth.FX are 1D vectors. they need to be 2D for the interp2 command. This makes them big 2D fields
-    
-            figure('Visible','on');
-            imagesc(orth.FX, orth.FY, MWR1);
-            axis image;
-            set(gca, 'YDir', 'normal');
-            xlabel('X (m)');
-            ylabel('Y (m)');
-            drawnow;
+% Flux-weighted footprint map filenames (without 'SurfFluxMaps_' prefix or '.mat')
+FileList = {
+    'MWR-KM-2024193-0000-to-2024274-0000-both-50-80MZA.mat', ...
+    'MWR-KM-2024193-0000-to-2024274-0000-day-50-80MZA.mat', ...
+    'MWR-KM-2024193-0000-to-2024274-0000-night-50-80MZA.mat'
+};
 
+%% Load Base Reference Grid (Orthoimagery)
+load(fullfile(input_dir, 'MWR_map.mat'));
+orth.FX = FX_MWR;
+orth.FY = FY_MWR;
+[orth.FXX, orth.FYY] = meshgrid(orth.FX, orth.FY);
 
-for k=1:length(FileList)
-    FileToLoad= FileList{k};% Modify the name of the file accordingly
-    
-    
-    % jj=[1,2];
-    for j_ct=1:length(jj)
-        j=jj(j_ct);
-        %% Get Surface Flux Maps onto same scale as orthoimagery
-        if j==1        
-            load(['SurfFluxMaps_' FileToLoad '.mat']);
-            [FXX,FYY]=meshgrid(FX,FY); %Makes 2D field for X and Y
-            
-            % Interpolates CH4 flux map and saves the data to a csv
+figure('Visible', 'on');
+imagesc(orth.FX, orth.FY, MWR1);
+axis image;
+set(gca, 'YDir', 'normal');
+xlabel('X (m)');
+ylabel('Y (m)');
+drawnow;
+
+%% Interpolate Selected Layers onto Common Reference Grid
+for j_ct = 1:length(jj)
+    j = jj(j_ct);
+
+    %% Option 1: Surface Flux Maps (CH4, CO2, H2O)
+    if j == 1
+        for k = 1:length(FileList)
+            FileToLoad = FileList{k};
+            load(fullfile(input_dir, ['SurfFluxMaps_' FileToLoad '.mat']));
+            [FXX, FYY] = meshgrid(FX, FY);
+
+            x = orth.FX;
+            y = orth.FY;
+
+            % --- Interpolate and Export CH4 Flux ---
             CH4_ortho = interp2(FXX, FYY, CH4_mat, orth.FXX, orth.FYY, 'linear');
-        
-            x = orth.FX;  % meters
-            y = orth.FY;  % meters
 
-            figure('Visible','on');
+            figure('Visible', 'on');
             h = imagesc(x, y, CH4_ortho);
             axis image;
             set(gca, 'YDir', 'normal');
             colormap(flipud(hot));
             set(h, 'AlphaData', ~isnan(CH4_ortho));
-            
             xlabel('X (m)');
             ylabel('Y (m)');
-            
-            % Set axes font size
             ax = gca;
-            ax.FontSize = 11;         % axes numbers
-            
-            % Create colorbar and enforce font size
+            ax.FontSize = 11;
+
             cb = colorbar;
-            cb.Label.String = 'CH_4 Flux (nmol m^{-2}s^{-1})';  % TeX version
-            cb.Label.Interpreter = 'tex';                        % ensures superscripts
-            cb.FontSize = 11;         % tick numbers
-            cb.Label.FontSize = 14;   % label size
-            
+            cb.Label.String = 'CH_4 Flux (nmol m^{-2}s^{-1})';
+            cb.Label.Interpreter = 'tex';
+            cb.FontSize = 11;
+            cb.Label.FontSize = 14;
             drawnow;
-            CH4_ortho(isnan(CH4_ortho))=-9999;
-            writematrix(CH4_ortho, [DataDir FileToLoad '_CH4_ortho.csv']);
 
-            %Interpolates CO2 flux map and saves data to a csv
-            CO2_ortho=interp2(FXX,FYY,CO2_mat,orth.FXX,orth.FYY,'linear');
-            
-            x = orth.FX;  % 1D vector of X in meters
-            y = orth.FY;  % 1D vector of Y in meters
-            figure('Visible','on');
+            CH4_ortho(isnan(CH4_ortho)) = -9999;
+            writematrix(CH4_ortho, fullfile(output_dir, [FileToLoad '_CH4_ortho.csv']));
 
-            i=imagesc(x,y,CO2_ortho);
+            % --- Interpolate and Export CO2 Flux ---
+            CO2_ortho = interp2(FXX, FYY, CO2_mat, orth.FXX, orth.FYY, 'linear');
+
+            figure('Visible', 'on');
+            i = imagesc(x, y, CO2_ortho);
             axis image;
             set(gca, 'YDir', 'normal');
             colormap(flipud(hot));
             set(i, 'AlphaData', ~isnan(CO2_ortho));
-            
             xlabel('X (m)');
             ylabel('Y (m)');
-            
-            % Set axes font size
             ax = gca;
-            ax.FontSize = 11;         % axes numbers
-            
-            % Create colorbar and enforce font size
+            ax.FontSize = 11;
+
             cb = colorbar;
-            cb.Label.String = 'CO_2 Flux (umol m^{-2}s^{-1})';  % TeX version
-            cb.Label.Interpreter = 'tex'; 
-            cb.FontSize = 11;         % tick numbers
-            cb.Label.FontSize = 14;   % label size
-            
+            cb.Label.String = 'CO_2 Flux (umol m^{-2}s^{-1})';
+            cb.Label.Interpreter = 'tex';
+            cb.FontSize = 11;
+            cb.Label.FontSize = 14;
             drawnow;
-    
 
-            CO2_ortho(isnan(CO2_ortho))=-9999;
-            writematrix(CO2_ortho, [DataDir FileToLoad '_CO2_ortho.csv']);
-            
-            %Interpolates H2O flux map and saves data to a csv
-            H2O_ortho=interp2(FXX,FYY,H2O_mat,orth.FXX,orth.FYY,'linear');
-            
-            x = orth.FX;  % 1D vector of X in meters
-            y = orth.FY;  % 1D vector of Y in meters
+            CO2_ortho(isnan(CO2_ortho)) = -9999;
+            writematrix(CO2_ortho, fullfile(output_dir, [FileToLoad '_CO2_ortho.csv']));
 
-            figure('Visible','on');
-            r=imagesc(x,y,H2O_ortho);
+            % --- Interpolate and Export H2O Flux ---
+            H2O_ortho = interp2(FXX, FYY, H2O_mat, orth.FXX, orth.FYY, 'linear');
+
+            figure('Visible', 'on');
+            r = imagesc(x, y, H2O_ortho);
             colormap(flipud(hot));
             set(r, 'AlphaData', ~isnan(H2O_ortho));
-            
             xlabel('X (m)');
             ylabel('Y (m)');
-            
-            % Set axes font size
             ax = gca;
-            ax.FontSize = 11;         % axes numbers
-            
-            % Create colorbar and enforce font size
+            ax.FontSize = 11;
+
             cb = colorbar;
-            cb.Label.String = 'H_2_O Flux (nmol/m2s)';
-            cb.FontSize = 11;         % tick numbers
-            cb.Label.FontSize = 14;   % label size
-            
-            drawnow;
-         
-
-            H2O_ortho(isnan(H2O_ortho))=-9999;
-            writematrix(H2O_ortho, [DataDir FileToLoad '_H2O_ortho.csv']);
-            
-        end
-
-        fprintf('Finished %d\n',k);
-        
-        %% Get DEM into correct gridspace
-        if j==2 %k==1
-            load('MWR_DEM_map.mat');
-            [FXX,FYY]=meshgrid(FX_DEM,FY_DEM); %Makes 2D field for X and Y
-            
-            % Interpolates CH4 flux map and saves the data to a csv
-            DEM_scale=interp2(FXX,FYY,DEM,orth.FXX,orth.FYY,'linear'); %Stretch and compresses map as needed to fit the desired coordinate system
-            DEM_scale(isnan(DEM_scale))=-9999;
-        
-            writematrix(DEM_scale, [DataDir 'DEM.csv']);
-            
-            DEM_scale(DEM_scale == -9999) = NaN;
-            x = orth.FX;  % 1D vector of X in meters
-            y = orth.FY;  % 1D vector of Y in meters
-            figure('Visible','on');
-            imagesc(x,y,DEM_scale);
-            axis image;
-            colormap("turbo");
-            
-            
-            xlabel('X (m)');
-            ylabel('Y (m)');
-
-            set(gca, 'YDir', 'normal');
-            colormap("turbo");
-
-            % Set axes font size
-            ax = gca;
-            ax.FontSize = 11;         % axes numbers
-            
-            % Create colorbar and enforce font size
-            cb = colorbar;
-            cb.Label.String = 'Elevation (m)';
-            cb.FontSize = 11;         % tick numbers
-            cb.Label.FontSize = 14;   % label size
-            
-            drawnow;
-            
-        end
-        %% Get Supervised Classification Map into correct gridspace
-        if j==3 %& k==1
-            load('MWR_CLASS_mapPIX.mat');
-            [FXX,FYY]=meshgrid(FX_CLASS,FY_CLASS); %Makes 2D field for X and Y
-            
-            % Interpolates CH4 flux map and saves the data to a csv
-            Class_scale=interp2(FXX,FYY,Class_Map1,orth.FXX,orth.FYY,'nearest'); %Stretch and compresses map as needed to fit the desired coordinate system
-            Class_scale(isnan(Class_scale))=-9999;
-            
-            writematrix(Class_scale, [DataDir 'Class_Map.csv']);
-
-            x = orth.FX;  % 1D vector of X in meters
-            y = orth.FY;  % 1D vector of Y in meters
-            figure('Visible','on');
-            imagesc(x,y, Class_scale);
-            axis image;
-            set(gca, 'YDir', 'normal');
-            axis image;
-            colormap("turbo");
-            
-            xlabel('X (m)');
-            ylabel('Y (m)');
-
-            set(gca, 'YDir', 'normal');
-            colormap("turbo");
-
-            % Set axes font size
-            ax = gca;
-            ax.FontSize = 11;         % axes numbers
-            
-            % Create colorbar and enforce font size
-            cb = colorbar;
-            cb.Label.String = 'Land Cover Class';
-
-            cb.FontSize = 11;         % tick numbers
-            cb.Label.FontSize = 14;   % label size
-
-            drawnow;
-        end
-        %% Get Height Map into correct gridspace
-        if j==4 %& k==1
-            load('MWR_Height_map.mat')
-            [FXX,FYY]=meshgrid(FX_Height,FY_Height); %Makes 2D field for X and Y
-            
-            % Interpolates CH4 flux map and saves the data to a csv
-            Height_scale=interp2(FXX,FYY,Height_Map,orth.FXX,orth.FYY,'linear'); %Stretch and compresses map as needed to fit the desired coordinate system
-            % Height_scale(isnan(Height_scale))=-9999;
-            
-            x = orth.FX;  % 1D vector of X in meters
-            y = orth.FY;  % 1D vector of Y in meters
-
-            figure('Visible','on');
-            imagesc(x,y,Height_scale);
-            axis image;
-            set(gca, 'YDir', 'normal');
-            axis image;
-            colormap("turbo");
-            
-            xlabel('X (m)');
-            ylabel('Y (m)');
-
-            set(gca, 'YDir', 'normal');
-            colormap("turbo");
-
-            % Set axes font size
-            ax = gca;
-            ax.FontSize = 11;         % axes numbers
-            
-            % Create colorbar and enforce font size
-            cb = colorbar;
-            cb.Label.String = 'Plant Height (m)';
-            cb.FontSize = 11;         % tick numbers
-            cb.Label.FontSize = 14;   % label size
-          
+            cb.Label.String = 'H_2O Flux (nmol m^{-2}s^{-1})';
+            cb.Label.Interpreter = 'tex';
+            cb.FontSize = 11;
+            cb.Label.FontSize = 14;
             drawnow;
 
+            H2O_ortho(isnan(H2O_ortho)) = -9999;
+            writematrix(H2O_ortho, fullfile(output_dir, [FileToLoad '_H2O_ortho.csv']));
 
-            writematrix(Height_scale, [DataDir 'Height_Map.csv']);
+            fprintf('Finished %d\n', k);
+        end
+    end
 
+    %% Option 2: Digital Elevation Model (DEM)
+    if j == 2
+        load(fullfile(input_dir, 'MWR_DEM_map.mat'));
+        [FXX, FYY] = meshgrid(FX_DEM, FY_DEM);
+
+        DEM_scale = -9999 * ones(size(orth.FXX));
+        inside = orth.FXX >= min(FX_DEM) & orth.FXX <= max(FX_DEM) & ...
+                 orth.FYY >= min(FY_DEM) & orth.FYY <= max(FY_DEM);
+
+        DEM_scale(inside) = interp2(FXX, FYY, DEM, orth.FXX(inside), orth.FYY(inside), 'linear');
+
+        DEM_plot = DEM_scale;
+        DEM_plot(DEM_plot == -9999) = NaN;
+
+        writematrix(DEM_scale, fullfile(output_dir, 'DEM.csv'));
+
+        x = orth.FX;
+        y = orth.FY;
+        figure('Visible', 'on');
+        h = imagesc(x, y, DEM_plot);
+        axis image;
+        set(gca, 'YDir', 'normal');
+        set(h, 'AlphaData', ~isnan(DEM_plot));
+        set(gca, 'Color', [0 0 0]);
+        colormap(gca, 'turbo');
+        xlabel('X (m)');
+        ylabel('Y (m)');
+        ax = gca;
+        ax.FontSize = 11;
+
+        cb = colorbar;
+        cb.Label.String = 'Elevation (m)';
+        cb.FontSize = 11;
+        cb.Label.FontSize = 14;
+        drawnow;
+    end
+
+    %% Option 3: Supervised Land-Cover Classification Map
+    if j == 3
+        load(fullfile(input_dir, 'MWR_CLASS_map.mat'));
+        [FXX, FYY] = meshgrid(FX_CLASS, FY_CLASS);
+
+        Class_scale = -9999 * ones(size(orth.FXX));
+        inside = orth.FXX >= min(FX_CLASS) & orth.FXX <= max(FX_CLASS) & ...
+                 orth.FYY >= min(FY_CLASS) & orth.FYY <= max(FY_CLASS);
+
+        Class_scale(inside) = interp2(FXX, FYY, Class_Map1, orth.FXX(inside), orth.FYY(inside), 'nearest');
+
+        Class_plot = Class_scale;
+        Class_plot(Class_plot == -9999) = NaN;
+
+        for c = 1:7
+            fprintf('Class %d: %d pixels\n', c, sum(Class_scale(:) == c));
         end
 
-        %% Get Colored Bands into correct gridspace
-        if j==5
-            cd('C:\MontezumaData\2024_Data\EC_data\FW_FluxMaps\')
-            load('BLUE_map.mat') %change file depending on the band of interest
-            [FXX,FYY]=meshgrid(FX_BANDS,FY_BANDS); %Makes 2D field for X and Y
-            BANDS = double(BANDS);
-            
-            % Interpolates map and saves the data to a csv
-            Band_scale=interp2(FXX,FYY,BANDS,orth.FXX,orth.FYY,'linear'); %Stretch and compresses map as needed to fit the desired coordinate system
-            Band_scale(isnan(Band_scale))=-9999;
-            
-            figure('Visible','on');
-            imagesc(Band_scale);
-            axis image;
-            set(gca, 'YDir', 'normal');
-            colormap("turbo");
-            colorbar;
-            title('Reprojected Color Band Map');
-            xlabel('Column (X pixel)');
-            ylabel('Row (Y pixel)');
-            drawnow;
+        writematrix(Class_scale, fullfile(output_dir, 'Class_Map.csv'));
 
+        x = orth.FX;
+        y = orth.FY;
+        figure('Visible', 'on');
+        imagesc(x, y, Class_plot);
+        axis image;
+        xlabel('X (m)');
+        ylabel('Y (m)');
+        set(gca, 'YDir', 'normal');
+        colormap("turbo");
+        ax = gca;
+        ax.FontSize = 11;
 
-            writematrix(Band_scale, [DataDir 'BLUE_Map.csv']);
+        cb = colorbar;
+        cb.Label.String = 'Land Cover Class';
+        cb.FontSize = 11;
+        cb.Label.FontSize = 14;
+        drawnow;
+    end
 
+    %% Option 4: Canopy Height Map
+    if j == 4
+        load(fullfile(input_dir, 'MWR_Height_map.mat'));
+        [FXX, FYY] = meshgrid(FX_Height, FY_Height);
 
+        Height_scale = -9999 * ones(size(orth.FXX));
+        inside = orth.FXX >= min(FX_Height) & orth.FXX <= max(FX_Height) & ...
+                 orth.FYY >= min(FY_Height) & orth.FYY <= max(FY_Height);
 
-        end
+        Height_scale(inside) = interp2(FXX, FYY, Height_Map, orth.FXX(inside), orth.FYY(inside), 'linear');
+
+        Height_plot = Height_scale;
+        Height_plot(Height_plot == -9999) = NaN;
+
+        writematrix(Height_scale, fullfile(output_dir, 'Height_Map.csv'));
+
+        x = orth.FX;
+        y = orth.FY;
+        figure('Visible', 'on');
+        h = imagesc(x, y, Height_plot);
+        axis image;
+        set(gca, 'YDir', 'normal');
+        set(h, 'AlphaData', ~isnan(Height_plot));
+        set(gca, 'Color', [0 0 0]);
+        colormap(gca, 'turbo');
+        xlabel('X (m)');
+        ylabel('Y (m)');
+        ax = gca;
+        ax.FontSize = 11;
+
+        cb = colorbar;
+        cb.Label.String = 'Plant Height (m)';
+        cb.FontSize = 11;
+        cb.Label.FontSize = 14;
+        drawnow;
     end
 end
 
+%% Generate Publication 3-Panel Figure (DEM, Canopy Height, Land Cover)
 x = orth.FX;
 y = orth.FY;
+figure('Visible', 'on', 'Units', 'inches', 'Position', [1, 1, 6.5, 9.5]);
+t = tiledlayout(3, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
 
-figure('Visible','on');
-t = tiledlayout(3,1,'TileSpacing','compact','Padding','compact');
-
-% Define the labels and font properties
-subplot_labels = {'a)', 'b)', 'c)'};
-label_fontsize = 14;
+subplot_labels   = {'(a)', '(b)', '(c)'};
+label_fontsize   = 11;
 label_fontweight = 'bold';
-label_color = 'k'; 
+label_color      = 'k';
+normalized_X     = -0.15;
+normalized_Y     = 1.05;
 
-% Define normalized coordinates for the labels
-% X-position: -0.15 (More negative to move further left, over the Y-axis labels)
-normalized_X = -0.2; 
-% Y-position: 1.05 (Slightly above the top edge of the plot area)
-normalized_Y = 1.05; 
-Common_Label_Size = 16;
+Axis_Font_Size  = 10;
+Label_Font_Size = 11;
+Cbar_Label_Size = 10;
+Cbar_Tick_Size  = 9;
 
-% --- DEM Map (Subplot a) ---
+% --- Subplot (a): DEM Map ---
 ax1 = nexttile;
-imagesc(x,y,DEM_scale);
+h1 = imagesc(x, y, DEM_plot);
+set(h1, 'AlphaData', ~isnan(DEM_plot));
+ax1.Color = [0 0 0];
 axis image;
-set(gca,'YDir','normal');
+set(ax1, 'YDir', 'normal', 'FontName', 'Times New Roman', 'FontSize', Axis_Font_Size, 'LineWidth', 0.8);
+ylabel('N/S Distance to Tower (m)', 'FontName', 'Times New Roman', 'FontSize', Label_Font_Size, 'FontWeight', 'normal');
+ax1.XTickLabel = [];
+colormap(ax1, "bone");
 
-% Set Y-axis label with the new font size
-ylabel('N/S Distance to Tower (m)', 'FontSize', Common_Label_Size); 
-
-ax1.XTick = [];
-colormap(ax1,"turbo");
 cb1 = colorbar;
-cb1.Label.String = 'Elevation (m)';
-% Set colorbar label with the same font size variable
-cb1.Label.FontSize = Common_Label_Size;
-cb1.Label.FontUnits = 'points'; % Ensure units are explicit
-cb1.Label.FontWeight = 'bold';  % Make it bold to ensure it matches the axis titles' visual weight
-cb1.FontSize = 10;
+set(cb1, 'FontName', 'Times New Roman', 'FontSize', Cbar_Tick_Size);
+ylabel(cb1, 'Elevation (m)', 'FontName', 'Times New Roman', 'FontSize', Cbar_Label_Size);
 
-% Place label 'a)'
 text(ax1, normalized_X, normalized_Y, subplot_labels{1}, ...
-    'Units', 'normalized', ...
-    'VerticalAlignment', 'bottom', ...
-    'HorizontalAlignment', 'left', ...
-    'FontSize', label_fontsize, ...
-    'FontWeight', label_fontweight, ...
-    'Color', label_color);
+    'Units', 'normalized', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'left', ...
+    'FontSize', label_fontsize, 'FontWeight', label_fontweight, 'Color', label_color, ...
+    'FontName', 'Times New Roman');
 
-
-% --- Height Map (Subplot b) ---
+% --- Subplot (b): Canopy Height Map ---
 ax2 = nexttile;
-imagesc(x,y,Height_scale);
+h2 = imagesc(x, y, Height_plot);
+set(h2, 'AlphaData', ~isnan(Height_plot));
+ax2.Color = [0 0 0];
 axis image;
-set(gca,'YDir','normal');
+set(ax2, 'YDir', 'normal', 'FontName', 'Times New Roman', 'FontSize', Axis_Font_Size, 'LineWidth', 0.8);
+ylabel('N/S Distance to Tower (m)', 'FontName', 'Times New Roman', 'FontSize', Label_Font_Size, 'FontWeight', 'normal');
+ax2.XTickLabel = [];
+colormap(ax2, "turbo");
 
-% Set Y-axis label with the new font size
-ylabel('N/S Distance to Tower (m)', 'FontSize', Common_Label_Size);
-
-ax2.XTick = [];
-colormap(ax2,"turbo");
 cb2 = colorbar;
-cb2.Label.String = 'Height (m)';
-cb2.Label.FontSize = Common_Label_Size;
-cb2.Label.FontUnits = 'points'; % Ensure units are explicit
-cb2.Label.FontWeight = 'bold';  % Make it bold to ensure it matches the axis titles' visual weight
-cb2.FontSize = 10;
+clim(ax2, [0 3]);
+cb2.Ticks = 0:1:3;
+cb2.TickLabels = compose('%.2f', cb2.Ticks);
+set(cb2, 'FontName', 'Times New Roman', 'FontSize', Cbar_Tick_Size);
+ylabel(cb2, 'Height (m)', 'FontName', 'Times New Roman', 'FontSize', Cbar_Label_Size);
 
-% Place label 'b)'
 text(ax2, normalized_X, normalized_Y, subplot_labels{2}, ...
-    'Units', 'normalized', ...
-    'VerticalAlignment', 'bottom', ...
-    'HorizontalAlignment', 'left', ...
-    'FontSize', label_fontsize, ...
-    'FontWeight', label_fontweight, ...
-    'Color', label_color);
+    'Units', 'normalized', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'left', ...
+    'FontSize', label_fontsize, 'FontWeight', label_fontweight, 'Color', label_color, ...
+    'FontName', 'Times New Roman');
 
-
-% --- Class Map (Subplot c) ---
+% --- Subplot (c): Land-Cover Classification Map ---
 ax3 = nexttile;
-imagesc(x,y,Class_scale);
+h3 = imagesc(x, y, Class_plot);
 axis image;
-set(gca,'YDir','normal');
+set(ax3, 'YDir', 'normal', 'FontName', 'Times New Roman', 'FontSize', Axis_Font_Size, 'LineWidth', 0.8);
+set(h3, 'AlphaData', ~isnan(Class_plot));
+ax3.Color = [0 0 0];
 
-ylabel('N/S Distance to Tower (m)', 'FontSize', Common_Label_Size);
-xlabel('E/W Distance to Tower (m)', 'FontSize', Common_Label_Size);
-colormap(ax3,"turbo");
+ylabel('N/S Distance to Tower (m)', 'FontName', 'Times New Roman', 'FontSize', Label_Font_Size, 'FontWeight', 'normal');
+xlabel('E/W Distance to Tower (m)', 'FontName', 'Times New Roman', 'FontSize', Label_Font_Size, 'FontWeight', 'normal');
+
+cmap = [
+    0.60 0.80 0.30   % Class 1: Phragmites
+    0.13 0.55 0.13   % Class 2: Typha
+    0.00 0.45 0.74   % Class 3: Water
+    0.85 0.65 0.13   % Class 4: Dead
+    0.80 0.20 0.20   % Class 5: Road
+    1.00 1.00 0.00   % Class 6: Upland
+    0.55 0.30 0.70   % Class 7: Non-Living
+];
+colormap(ax3, cmap);
+clim(ax3, [0.5 7.5]);
+
 cb3 = colorbar;
-cb3.Label.String = 'Class';
-cb3.Label.FontSize = Common_Label_Size;
-cb3.Label.FontUnits = 'points'; % Ensure units are explicit
-cb3.Label.FontWeight = 'bold';  % Make it bold to ensure it matches the axis titles' visual weight
-cb3.FontSize = 10;
+cb3.Ticks = 1:7;
+cb3.TickLabels = {'Phrag', 'Typha', 'Water', 'Dead', 'Road', 'Uplnd', 'NonLiv'};
+set(cb3, 'FontName', 'Times New Roman', 'FontSize', Cbar_Tick_Size);
+ylabel(cb3, 'Class', 'FontName', 'Times New Roman', 'FontSize', Cbar_Label_Size);
 
-% Place label 'c)'
 text(ax3, normalized_X, normalized_Y, subplot_labels{3}, ...
-    'Units', 'normalized', ...
-    'VerticalAlignment', 'bottom', ...
-    'HorizontalAlignment', 'left', ...
-    'FontSize', label_fontsize, ...
-    'FontWeight', label_fontweight, ...
-    'Color', label_color);
+    'Units', 'normalized', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'left', ...
+    'FontSize', label_fontsize, 'FontWeight', label_fontweight, 'Color', label_color, ...
+    'FontName', 'Times New Roman');
 
-
-% Link x-axes so horizontal zoom/pan is consistent
-linkaxes([ax1, ax2, ax3],'x');
+linkaxes([ax1, ax2, ax3], 'x');
